@@ -15,10 +15,13 @@ class AbdPainPredictionMLP(nn.Module):
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(4083, 1024),
+            nn.Dropout(p=0.5),
             nn.ReLU(),
             nn.Linear(1024, 512),
+            nn.Dropout(p=0.5),
             nn.ReLU(),
             nn.Linear(512, 512),
+            nn.Dropout(p=0.5), 
             nn.ReLU(),
             nn.Linear(512, n_classes),
         )

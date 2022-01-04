@@ -23,10 +23,12 @@ import pickle as pkl
 import time
 
 from sklearn import preprocessing
+from sklearn.metrics import top_k_accuracy_score
 
 import numpy as np
 import pandas as pd
 import sklearn
+from sklearn.preprocessing import StandardScaler
 from joblib import dump, load
 
 import matplotlib.pyplot as plt
@@ -51,8 +53,9 @@ data_fp = f"/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/unq_pt_enc_s
 N_CLASSES = 65
 
 le = preprocessing.LabelEncoder()
+scaler = StandardScaler()
 
-data = pd.read_csv(data_fp, nrows=10000)
+data = pd.read_csv(data_fp, nrows=50000)
 data = data.rename(columns={"WikEM_overalltopic" : "label"})
 single_support_classes = set(data['label'].value_counts()[data['label'].value_counts() == 1].index)
 droppable_rows = data['label'].isin(single_support_classes).sum()
@@ -72,9 +75,9 @@ X_train, X_test, y_train, y_test = train_test_split(data[train_col_mask],
                                                    test_size=0.2, random_state=314, 
                                                    )
 
-
-train_features = torch.tensor(X_train.values.astype(np.float32))
-test_features = torch.tensor(X_test.values.astype(np.float32))
+scaler.fit(X_train.values.astype(np.float32))
+train_features = torch.tensor(scaler.transform(X_train.values.astype(np.float32)))
+test_features = torch.tensor(scaler.transform(X_test.values.astype(np.float32)))
 
 # print(train_features.shape)
 # print(le.transform(y_train).shape)
@@ -101,9 +104,9 @@ def evaluate(model, evaluation_set):
     total = 0
     with torch.no_grad():
         for data, labels in evaluation_set:
-            out = model(data)
+            out = model(data.to(device))
             _, predicted = torch.max(out.data, 1)
-
+            labels = labels.to(device)
             total += labels.size(0)
 
             correct += (predicted == labels).sum().item()
@@ -130,7 +133,8 @@ def train(model, loss_fn, optimizer, train_loader, test_loader,
         for data, targets in train_loader:
             
             optimizer.zero_grad()
-            out = model(data)
+            targets = targets.to(device)
+            out = model(data.to(device))
 
             loss = loss_fn(out, targets)
 
@@ -147,7 +151,10 @@ def train(model, loss_fn, optimizer, train_loader, test_loader,
 
 
 model = AbdPainPredictionMLP(N_CLASSES).to(device)
-opt = torch.optim.Adam(model.parameters(), lr=1e-6)
+opt = torch.optim.Adam(model.parameters(), lr=1e-5)
 loss = torch.nn.CrossEntropyLoss()
 
-train(model, loss, opt, train_loader, test_loader)
+train(model, loss, opt, train_loader, test_loader, n_epochs=150)
+
+# y_pred = model(test_features)
+# top_k_accuracy_score(y_test, y_pred, labels=le.classes_, k=10)
