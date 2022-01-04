@@ -32,6 +32,7 @@ from joblib import dump, load
 import matplotlib.pyplot as plt
 
 import torch
+from torch.utils.data import TensorDataset
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
@@ -50,7 +51,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #################
 data_fp = f"/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/unq_pt_enc_single_label_full_clean_label.csv"
 data = pd.read_csv()
-N_CLASSES = 67
+N_CLASSES = 65
 
 le = preprocessing.LabelEncoder()
 
@@ -67,7 +68,7 @@ data.columns = data.columns.str.replace("[|]|<", "leq_")
 non_train_col_mask = data.columns[data.columns.str.contains("EdDisposition_")].union(data.columns[:3], sort=False).union(pd.Index(['label']), sort=False)
 train_col_mask = data.columns.difference(non_train_col_mask, sort=False)
 
-labels = le.fit_transform(data['label'])
+le.fit(data['label'])
 X_train, X_test, y_train, y_test = train_test_split(data[train_col_mask],
                                                     data['label'],
                                                     stratify=train_test_stratify, # we would like to stratify by label, but we have a few that only have one instance
@@ -75,8 +76,11 @@ X_train, X_test, y_train, y_test = train_test_split(data[train_col_mask],
                                                    )
 
 
-train_loader = torch.tensor(X_train.values)
-test_loader = torch.tensor(X_test.values)
+train_features = torch.tensor(X_train.values)
+test_features = torch.tensor(X_test.values)
+
+train_loader = TensorDataset(train_features, le.transform(y_train))
+test_loader = TensorDataset(test_features, le.transform(y_test))
 
 ##########################
 ### Model Train Funcs. ###
@@ -137,3 +141,5 @@ def train(model, loss_fn, optimizer, train_loader, test_loader,
 model = AbdPainPredictionMLP(N_CLASSES).to(device)
 opt = torch.optim.Adam(model.parameters(), lr=1e-6)
 loss = torch.nn.CrossEntropyLoss()
+
+train(model, loss, opt, train_loader, test_loader)
