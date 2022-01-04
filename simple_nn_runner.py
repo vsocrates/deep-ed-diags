@@ -78,8 +78,16 @@ test_features = torch.tensor(X_test.values.astype(np.float32))
 
 # print(train_features.shape)
 # print(le.transform(y_train).shape)
-train_loader = TensorDataset(train_features, torch.tensor(le.transform(y_train).astype(np.float32)))
-test_loader = TensorDataset(test_features, torch.tensor(le.transform(y_test).astype(np.float32)))
+train_dataset = TensorDataset(train_features, torch.tensor(le.transform(y_train).astype(np.float32)))
+test_dataset = TensorDataset(test_features, torch.tensor(le.transform(y_test).astype(np.float32)))
+
+train_loader = DataLoader(train_dataset, batch_size=64,
+#  collate_fn=collate_wrapper,
+                    pin_memory=True)
+
+test_loader = DataLoader(test_dataset, batch_size=64,
+#  collate_fn=collate_wrapper,
+                    pin_memory=True)
 
 ##########################
 ### Model Train Funcs. ###
