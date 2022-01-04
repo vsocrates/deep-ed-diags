@@ -51,11 +51,12 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #################
 data_fp = f"/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/unq_pt_enc_single_label_full_clean_label.csv"
 N_CLASSES = 65
+N_EPOCHS = 200
 
 le = preprocessing.LabelEncoder()
 scaler = StandardScaler()
 
-data = pd.read_csv(data_fp, nrows=50000)
+data = pd.read_csv(data_fp)#, nrows=50000)
 data = data.rename(columns={"WikEM_overalltopic" : "label"})
 single_support_classes = set(data['label'].value_counts()[data['label'].value_counts() == 1].index)
 droppable_rows = data['label'].isin(single_support_classes).sum()
@@ -154,7 +155,7 @@ model = AbdPainPredictionMLP(N_CLASSES).to(device)
 opt = torch.optim.Adam(model.parameters(), lr=1e-5)
 loss = torch.nn.CrossEntropyLoss()
 
-train(model, loss, opt, train_loader, test_loader, n_epochs=150)
+train(model, loss, opt, train_loader, test_loader, n_epochs=N_EPOCHS)
 
 # y_pred = model(test_features)
 # top_k_accuracy_score(y_test, y_pred, labels=le.classes_, k=10)
