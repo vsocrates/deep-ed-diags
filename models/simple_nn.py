@@ -26,6 +26,6 @@ class AbdPainPredictionMLP(nn.Module):
         # self.bert_embedding = 
 
     def forward(self, x):
-        x = self.flatten(x)
+        # x = self.flatten(x)
         logits = self.linear_relu_stack(x)
         return logits
