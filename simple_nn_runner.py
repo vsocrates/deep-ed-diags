@@ -102,7 +102,11 @@ def evaluate(model, evaluation_set):
     with torch.no_grad():
         for data, labels in evaluation_set:
             out = model(data)
-            _, predicted = torch.max(out,data, 1)
+            print(type(out))
+            print(out.shape)
+            _, predicted = torch.max(out.data, 1)
+            print(predicted.shape)
+            print(type(predicted))
 
             total += labels.size(0)
 
@@ -132,9 +136,6 @@ def train(model, loss_fn, optimizer, train_loader, test_loader,
             optimizer.zero_grad()
             out = model(data)
 
-            print(data.shape)
-            print(out.shape)
-            print(targets.shape)
             loss = loss_fn(out, targets)
 
             loss.backward()
