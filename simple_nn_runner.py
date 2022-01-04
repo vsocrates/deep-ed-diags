@@ -76,8 +76,8 @@ X_train, X_test, y_train, y_test = train_test_split(data[train_col_mask],
 train_features = torch.tensor(X_train.values.astype(np.float32))
 test_features = torch.tensor(X_test.values.astype(np.float32))
 
-print(train_features.shape)
-print(le.transform(y_train).shape)
+# print(train_features.shape)
+# print(le.transform(y_train).shape)
 train_loader = TensorDataset(train_features, torch.tensor(le.transform(y_train).astype(np.float32)))
 test_loader = TensorDataset(test_features, torch.tensor(le.transform(y_test).astype(np.float32)))
 
@@ -123,6 +123,10 @@ def train(model, loss_fn, optimizer, train_loader, test_loader,
             
             optimizer.zero_grad()
             out = model(data)
+
+            print(data.shape)
+            print(out.shape)
+            print(targets.shape)
             loss_fn(out, targets)
 
             loss_fn.backward()
