@@ -135,9 +135,9 @@ def train(model, loss_fn, optimizer, train_loader, test_loader,
             print(data.shape)
             print(out.shape)
             print(targets.shape)
-            loss_fn(out, targets)
+            loss = loss_fn(out, targets)
 
-            loss_fn.backward()
+            loss.backward()
             optimizer.step()
 
 
