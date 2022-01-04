@@ -36,8 +36,6 @@ from torch.utils.data import TensorDataset
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-from MissedDiagsDataset import MissedDiagsDataset
-
 from models.simple_nn import * 
 
 
@@ -50,12 +48,11 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 ### Data Load ###
 #################
 data_fp = f"/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/unq_pt_enc_single_label_full_clean_label.csv"
-data = pd.read_csv()
 N_CLASSES = 65
 
 le = preprocessing.LabelEncoder()
 
-data = pd.read_csv(data_fp)
+data = pd.read_csv(data_fp, nrows=10000)
 data = data.rename(columns={"WikEM_overalltopic" : "label"})
 single_support_classes = set(data['label'].value_counts()[data['label'].value_counts() == 1].index)
 droppable_rows = data['label'].isin(single_support_classes).sum()
@@ -79,8 +76,10 @@ X_train, X_test, y_train, y_test = train_test_split(data[train_col_mask],
 train_features = torch.tensor(X_train.values)
 test_features = torch.tensor(X_test.values)
 
-train_loader = TensorDataset(train_features, le.transform(y_train))
-test_loader = TensorDataset(test_features, le.transform(y_test))
+print(train_features.shape)
+print(le.transform(y_train).shape)
+train_loader = TensorDataset(train_features, torch.tensor(le.transform(y_train)))
+test_loader = TensorDataset(test_features, torch.tensor(le.transform(y_test)))
 
 ##########################
 ### Model Train Funcs. ###
