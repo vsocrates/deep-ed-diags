@@ -102,11 +102,7 @@ def evaluate(model, evaluation_set):
     with torch.no_grad():
         for data, labels in evaluation_set:
             out = model(data)
-            print(type(out))
-            print(out.shape)
             _, predicted = torch.max(out.data, 1)
-            print(predicted.shape)
-            print(type(predicted))
 
             total += labels.size(0)
 
