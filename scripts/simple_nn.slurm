@@ -3,10 +3,10 @@
 #SBATCH --requeue
 #SBATCH --job-name=vs_baselines
 #SBATCH --out="baseline_%x-%j.out"
-#SBATCH --mem=160G
+#SBATCH --mem=90G
 #SBATCH --gpus=1
 #SBATCH --nodes=1
-#SBATCH --time=00-18:00:00
+#SBATCH --time=00-6:00:00
 #SBATCH --mail-type=ALL
 
 

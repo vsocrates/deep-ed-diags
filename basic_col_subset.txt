@@ -1,0 +1,60 @@
+Sex_Female
+Sex_Male
+Sex_Unknown
+GenderIdentity_Choose not to disclose
+GenderIdentity_Female
+GenderIdentity_Gender non-conforming
+GenderIdentity_Genderqueer
+GenderIdentity_Intersex
+GenderIdentity_Male
+GenderIdentity_Other
+GenderIdentity_Transgender Female / Male-to-Female
+GenderIdentity_Transgender Male / Female-to-Male
+FirstRace_Asian
+FirstRace_Black or African American
+FirstRace_Native Hawaiian
+FirstRace_Native Hawaiian or Other Pacific Islander
+FirstRace_Other
+FirstRace_Other Pacific Islander
+FirstRace_Other/Not Listed
+FirstRace_Patient Refused
+FirstRace_Unknown
+FirstRace_White or Caucasian
+Ethnicity_Hispanic or Latino
+Ethnicity_Non-Hispanic
+Ethnicity_Patient Refused
+Ethnicity_Unknown
+SmokingStatus_*Unspecified
+SmokingStatus_Current Every Day Smoker
+SmokingStatus_Current Some Day Smoker
+SmokingStatus_Former Smoker
+SmokingStatus_Heavy Tobacco Smoker
+SmokingStatus_Light Tobacco Smoker
+SmokingStatus_Never Assessed
+SmokingStatus_Never Smoker
+SmokingStatus_Never Smoker 
+SmokingStatus_Passive Smoke Exposure - Never Smoker
+SmokingStatus_Smoker, Current Status Unknown
+SmokingStatus_Unknown If Ever Smoked
+AcuityLevel_Emergent
+AcuityLevel_Immediate
+AcuityLevel_Less Urgent
+AcuityLevel_Non-Urgent
+AcuityLevel_Urgent
+CC_ABDOMINAL DISTENTION
+CC_ABDOMINAL PAIN
+CC_ABDOMINAL PAIN PREGNANT
+CC_EPIGASTRIC PAIN
+CC_FLANK PAIN
+CC_PELVIC PAIN
+CC_PELVIC PAIN-PREGNANT
+CC_SIDE PAIN
+ed_SpO2
+ed_Temp
+ed_Patient Acuity
+ed_Pulse
+ed_Pain Score
+ed_Resp
+ed_BP_Systolic
+ed_BP_Diastolic
+label

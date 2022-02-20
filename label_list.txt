@@ -1,0 +1,64 @@
+Abdominal Pain, general
+Abdominal aortic aneurysm
+Abdominal migraine
+Abortion
+Acute cystitis
+Acute gastroenteritis
+Aortic dissection
+Appendicitis
+Bowel obstruction
+Bowel perforation
+CHF
+Cholangitis
+Colitis
+Colon cancer
+Constipation
+Diabetic ketoacidosis
+Diverticulitis
+Ectopic pregnancy
+Flank pain/renal colic
+Gastritis
+Gastroesophageal reflux disease (GERD)
+Gastroparesis
+Glaucoma
+Hepatitis
+Hernia
+Herpes zoster
+Inflammatory Disease of the Uterus/Endometriosis
+Inflammatory bowel disease
+Irritable bowel syndrome
+Labor/Preterm Labor
+Meckel's diverticulum
+Mesenteric ischemia
+Mesenteric lymphadenitis
+Methanol Poisoning
+Mittelschmerz
+Mononucleosis
+Muscle spasm
+Myoma (degenerating)
+Ovarian cyst
+Pancreatitis
+Paroxysmal nocturnal hemoglobinuria
+Pelvic inflammatory disease
+Peptic ulcer disease with or without perforation
+Pericarditis/Myocarditis
+Peritonitis
+Placental Abruption
+Pneumonia
+Porphyria
+Psoas abscess
+Pulmonary embolism
+Renal Failure
+STI
+Sepsis
+Sexual assault/trauma
+Sickle Cell Crisis
+Splenic infarction/Splenic artery aneurysm rupture
+Strep Pharyngitis (peds)
+Systemic lupus erythematosus
+Testicular Torsion
+Uremia
+Urolithiasis
+Vaginitis (e.g. trichomoniasis, candidiasis)[1]
+Vasculitis
+Viral infection/influenza
