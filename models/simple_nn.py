@@ -11,7 +11,7 @@ from torchvision import datasets, transforms
 
 
 class AbdPainPredictionMLP(nn.Module):
-    def __init__(self, input_dim, n_classes, layer_size=256, dropout=0.5):
+    def __init__(self, input_dim, n_classes, layer_size=256, dropout=0.0):
         super(AbdPainPredictionMLP, self).__init__()
 
         self.fc1 = nn.Linear(input_dim, layer_size)
@@ -23,15 +23,19 @@ class AbdPainPredictionMLP(nn.Module):
         self.bn2 = nn.BatchNorm1d(num_features=layer_size)
         self.bn3 = nn.BatchNorm1d(num_features=layer_size)
 
+        self.dropout_p = dropout
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x):
-        x = self.bn1(F.relu(self.fc1(x)))
-        x = self.bn2(F.relu(self.fc2(x)))
-        x = self.bn3(F.relu(self.fc3(x)))
-        #         x = self.dropout(F.relu(self.fc1(x)))
-        #         x = self.dropout(F.relu(self.fc2(x)))
-        #         x = self.dropout(F.relu(self.fc3(x)))
+        # we use either dropout or BN but not both, since it has been shown they don't work well together.
+        if self.dropout_p > 0:
+            x = self.dropout(F.relu(self.fc1(x)))
+            x = self.dropout(F.relu(self.fc2(x)))
+            x = self.dropout(F.relu(self.fc3(x)))
+        else:
+            x = self.bn1(F.relu(self.fc1(x)))
+            x = self.bn2(F.relu(self.fc2(x)))
+            x = self.bn3(F.relu(self.fc3(x)))
 
         logits = self.fc4(x)
 

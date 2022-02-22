@@ -3,10 +3,15 @@ import pandas as pd
 from collections import Counter
 import torch
 from sklearn.metrics import *
-import torchmetrics
+
 import wandb
+
+from pytorch_lightning.callbacks import Callback
+import pytorch_lightning as pl
+import torchmetrics
 from torchmetrics.functional import hamming_distance
 
+from .general_utils import *
 
 ################
 ## Functions ###
@@ -25,21 +30,11 @@ def _effective_num_weighting(beta, samples_per_cls, no_of_classes):
     return weights
 
 
-def column_index(df, query_cols):
-    cols = df.columns.values
-    sidx = np.argsort(cols)
-    return sidx[np.searchsorted(cols, query_cols, sorter=sidx)]
-
-
-def flatten(t):
-    return [item for sublist in t for item in sublist]
-
-
-def get_class_weights(labels, wandb, n_samples, label_list=None):
+def multilabel_get_class_weights(labels, config, n_samples, label_list=None):
     """Returns class weights given a list of labels and the label_list we want the
     order to be in.
 
-    Also takes in the wandb config
+    Also takes in the wandb config which is just a dict.
     """
     samples_per_cls = pd.Series(Counter(flatten(labels)))
     if label_list:
@@ -48,27 +43,27 @@ def get_class_weights(labels, wandb, n_samples, label_list=None):
         # make sure we don't have any labels not in label_list
         assert samples_per_cls.isna().sum() == 0
 
-    if wandb.config["class_weight_type"] == "effective_sample":
-        beta = wandb.config["weight_beta"]
+    if config["class_weight_type"] == "effective_sample":
+        beta = config["weight_beta"]
         no_of_classes = samples_per_cls.size
         class_weights = pd.Series(
             _effective_num_weighting(beta, samples_per_cls, no_of_classes),
             index=samples_per_cls.index,
         ).values
 
-    elif wandb.config["class_weight_type"] == "balanced":
+    elif config["class_weight_type"] == "balanced":
         class_weights = n_samples / (len(samples_per_cls) * samples_per_cls).values
-    elif wandb.config["class_weight_type"] == "inverse":
+    elif config["class_weight_type"] == "inverse":
         # multiply by total/2 as per tensorflow core example imbalanced classes
-        class_weights = (1 / samples_per_cls) * (
-            samples_per_cls.sum() / wandb.config["class_weight_inv_lambda"]
-        ).values
+        class_weights = ((1 / samples_per_cls) * (
+            samples_per_cls.sum() / config["class_weight_inv_lambda"]
+        )).values
 
-    elif wandb.config["class_weight_type"] == "constant":
+    elif config["class_weight_type"] == "constant":
         class_weights = np.full(
-            (1, len(samples_per_cls)), wandb.config["constant_weight"]
+            (1, len(samples_per_cls)), config["constant_weight"]
         )
-    elif wandb.config["class_weight_type"] == "bce_weights":
+    elif config["class_weight_type"] == "bce_weights":
         class_weights = (
             (samples_per_cls.sum() - samples_per_cls) / (samples_per_cls)
         ).values
@@ -195,28 +190,27 @@ def multilabel_train(
                 #                 print(out[idxs[0],:])
                 print("# correct?:\n", (preds == targets).sum())
                 print(loss)
-            if wandb:
-                wandb.log(
-                    {
-                        "train_loss": loss,
-                        "train_subset_acc": torchmetrics.functional.accuracy(
-                            preds, targets.long(), subset_accuracy=True
-                        ),
-                        #                           "hamming_dist":1-torchmetrics.functional.hamming_distance(preds, targets.long()),
-                        "train_precision/macro": torchmetrics.functional.precision(
-                            preds, targets.long()
-                        ),
-                        "train_recall/macro": torchmetrics.functional.recall(
-                            preds, targets.long()
-                        ),
-                        "train_precision@5": torchmetrics.functional.retrieval_precision(
-                            out, targets.long(), k=5
-                        ),
-                        "train_recall@5": torchmetrics.functional.retrieval_recall(
-                            out, targets.long(), k=5
-                        ),
-                    }
-                )
+            wandb.log(
+                {
+                    "train_loss": loss,
+                    "train_subset_acc": torchmetrics.functional.accuracy(
+                        preds, targets.long(), subset_accuracy=True
+                    ),
+                    #                           "hamming_dist":1-torchmetrics.functional.hamming_distance(preds, targets.long()),
+                    "train_precision/macro": torchmetrics.functional.precision(
+                        preds, targets.long()
+                    ),
+                    "train_recall/macro": torchmetrics.functional.recall(
+                        preds, targets.long()
+                    ),
+                    "train_precision@5": torchmetrics.functional.retrieval_precision(
+                        out, targets.long(), k=5
+                    ),
+                    "train_recall@5": torchmetrics.functional.retrieval_recall(
+                        out, targets.long(), k=5
+                    ),
+                }
+            )
 
             loss.backward()
             optimizer.step()
@@ -244,3 +238,30 @@ def multilabel_train(
         f" Train accuracy: {multilabel_evaluate(model,loss_fn, train_loader, device, wandb)}. Test accuracy: {multilabel_evaluate(model,loss_fn, test_loader, device, wandb)}",
         flush=True,
     )
+    
+
+class PrintCallback(pl.Callback):
+    def on_train_start(self, trainer, pl_module):
+        print("Training is started!")
+    def on_train_end(self, trainer, pl_module):
+        print("Training is done.")
+        
+
+class PredictionLogger(pl.Callback):
+    def __init__(self, val_samples):
+        super().__init__()
+        self.val_data, self.val_targets = val_samples
+    
+    def on_validation_end(self, trainer, pl_module):
+        val_imgs = self.val_data.to(device=pl_module.device)
+        val_targets = self.val_targets.to(device=pl_module.device)
+        
+        out = pl_module(val_imgs)
+        preds = torch.sigmoid(out).data > 0.5
+        preds = preds.to(torch.float32)
+        
+        val_precision = torchmetrics.functional.precision(preds, val_targets.long())
+        val_recall = torchmetrics.functional.recall(preds, val_targets.long())        
+        
+        print(f"\n\n\nValidation Precision/macro: {val_precision}\nValidation Recall/macro: {val_recall}\n\n")
+        

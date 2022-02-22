@@ -8,15 +8,22 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import pytorch_lightning as pl
+import torch.nn.functional as F 
 
+from torch.optim.lr_scheduler import ExponentialLR
+import torchmetrics 
 
-class AbdPainPredictionMLP(pl.LightningModule):
-    def __init__(self, *args, **kwarg):
+import wandb
+
+class LitAbdPainPredictionMLP(pl.LightningModule):
+    def __init__(self, input_dim, n_classes, 
+#                  learning_rate, 
+                 config=None, loss_fn=F.binary_cross_entropy_with_logits, layer_size=256, dropout=0.5):
         """Basic MLP to Training Abdominal Pain DDX Prediction
-        input_dim, n_classes, config=None, loss_fn=F.MSELoss, layer_size=256, dropout=0.5
+        
         config is a dictionary from W&B most likely
         """
-        super(AbdPainPredictionMLP, self).__init__()
+        super().__init__()
 
         self.fc1 = nn.Linear(input_dim, layer_size)
         self.fc2 = nn.Linear(layer_size, layer_size)
@@ -28,19 +35,22 @@ class AbdPainPredictionMLP(pl.LightningModule):
         self.bn3 = nn.BatchNorm1d(num_features=layer_size)
 
         self.dropout = nn.Dropout(p=dropout)
-
+        self.dropout_p = dropout
+        
         self.config = config
-        self.loss_fn = loss_fn
+#         self.lr = learning_rate
 
-        self.save_hyperparameters()
+        self.loss = loss_fn
 
     def forward(self, x):
-        x = self.bn1(F.relu(self.fc1(x)))
-        x = self.bn2(F.relu(self.fc2(x)))
-        x = self.bn3(F.relu(self.fc3(x)))
-        #         x = self.dropout(F.relu(self.fc1(x)))
-        #         x = self.dropout(F.relu(self.fc2(x)))
-        #         x = self.dropout(F.relu(self.fc3(x)))
+        if self.dropout_p > 0:
+            x = self.dropout(F.relu(self.fc1(x)))
+            x = self.dropout(F.relu(self.fc2(x)))
+            x = self.dropout(F.relu(self.fc3(x)))
+        else:
+            x = self.bn1(F.relu(self.fc1(x)))
+            x = self.bn2(F.relu(self.fc2(x)))
+            x = self.bn3(F.relu(self.fc3(x)))
 
         logits = self.fc4(x)
 
@@ -48,66 +58,81 @@ class AbdPainPredictionMLP(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         data, targets = batch
-        out = model(data)
-        loss = self.loss_fn(out, targets)
+        out = self(data)
+        loss = self.loss(out, targets)
         preds = torch.sigmoid(out).data > 0.5
         preds = preds.to(torch.float32)
-        #             print("in train - pred:\n", preds)
-        #             print("in train - out:\n", torch.sigmoid(out))
-        #             print("in train - target:\n", targets)
-        #             print("# correct?:\n", (preds==targets).sum())
-        #             print(loss,  "\n")
 
-        if data_idx % 5000 == 0:
-            idxs = torch.nonzero(torch.sum(targets, 1) > 1)
-            #                 print(targets[idxs[0],:])
-            #                 print(preds[idxs[0],:])
-            #                 print(torch.sigmoid(out[idxs[0],:]))
-            #                 print(out[idxs[0],:])
-            print("# correct?:\n", (preds == targets).sum())
-            print(loss)
-        if wandb:
-            wandb.log(
-                {
-                    "train_loss": loss,
-                    "train_subset_acc": torchmetrics.functional.accuracy(
-                        preds, targets.long(), subset_accuracy=True
-                    ),
-                    #                           "hamming_dist":1-torchmetrics.functional.hamming_distance(preds, targets.long()),
-                    "train_precision/macro": torchmetrics.functional.precision(
-                        preds, targets.long()
-                    ),
-                    "train_recall/macro": torchmetrics.functional.recall(
-                        preds, targets.long()
-                    ),
-                    "train_precision@5": torchmetrics.functional.retrieval_precision(
-                        out, targets.long(), k=5
-                    ),
-                    "train_recall@5": torchmetrics.functional.retrieval_recall(
-                        out, targets.long(), k=5
-                    ),
-                }
-            )
+        wandb.log(
+            {
+                "train_loss": loss,
+                "train_subset_acc": torchmetrics.functional.accuracy(
+                    preds, targets.long(), subset_accuracy=True
+                ),
+                # "hamming_dist":1-torchmetrics.functional.hamming_distance(preds, targets.long()),
+                "train_precision/macro": torchmetrics.functional.precision(
+                    preds, targets.long()
+                ),
+                "train_recall/macro": torchmetrics.functional.recall(
+                    preds, targets.long()
+                ),
+                "train_precision@5": torchmetrics.functional.retrieval_precision(
+                    out, targets.long(), k=5
+                ),
+                "train_recall@5": torchmetrics.functional.retrieval_recall(
+                    out, targets.long(), k=5
+                )
+            }
+        )
 
-        loss.backward()
-        optimizer.step()
-
-        x, y = batch
-        x = x.view(x.size(0), -1)
-        z = self.encoder(x)
-        x_hat = self.decoder(z)
-        loss = F.mse_loss(x_hat, x)
-        # Logging to TensorBoard by default
-        self.log("train_loss", loss)
         return loss
+    
+    def validation_step(self, batch, batch_idx):
+        data, targets = batch
+        # TODO: ValueError: You can not use the `top_k` parameter to calculate accuracy for multi-label inputs.
+        #     avg_topk_acc = []
+        out = self(data)
+        loss = self.loss(out, targets)
+        #             self.log({"train_loss": loss})
+        preds = torch.sigmoid(out).data > 0.5
+        preds = preds.to(torch.float32)
+
+        # avg_topk_acc.append(torchmetrics.functional.accuracy(preds, targets.long(), top_k=5))
+
+        # TODO: create a PR plot for the multilabel case
+        #             self.log({"pr" : wandb.plot.pr_curve(targets.cpu(), preds.data.cpu(),
+        #                      labels=label_freqs.index.tolist()
+        #                                                  )})
+
+        self.log("validation_loss", loss)
+        wandb.log({"validation_acc": torchmetrics.functional.accuracy(
+                        preds, targets.long(), subset_accuracy=True
+                    )})
+        #         wandb.log({"top5_validation_acc":sum(avg_topk_acc)/len(avg_topk_acc)})
+        
+        
+        return loss        
 
     def configure_optimizers(self):
+#         opt = torch.optim.SGD(self.parameters(), 
+#                                     lr=self.lr, 
+#                                     weight_decay=self.config["lr_weight_decay"],
+#                                     momentum=0.9)
+
         opt = torch.optim.Adam(
             self.parameters(),
-            lr=self.wandb.config["learning_rate"],
-            weight_decay=wandb.config["lr_weight_decay"],
+            lr=self.config["learning_rate"],
+            weight_decay=self.config["lr_weight_decay"],
         )
-        return opt
-
-    def training_step(self, batch, batch_idx):
-        pass
+        
+        if self.config['lr_scheduler']:            
+            return {
+                "optimizer": opt,
+                "lr_scheduler": {
+                'scheduler': ExponentialLR(opt, 0.99),
+                'interval': 'epoch'  # called after each training step
+                },
+            }
+        else:
+            return opt
+    

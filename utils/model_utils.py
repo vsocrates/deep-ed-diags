@@ -4,7 +4,7 @@ from torch import nn
 
 class MultilabelFocalLoss(nn.Module):
     def __init__(
-        self, n_classes, weight=None, gamma=2.0, threshold=0.5, reduction="none"
+        self, n_classes, weight=None, gamma=2.0, threshold=0.5, reduction="mean"
     ):
         super(MultilabelFocalLoss, self).__init__()
         self.gamma = gamma
@@ -19,7 +19,6 @@ class MultilabelFocalLoss(nn.Module):
         p = torch.where(t >= self.threshold, p, 1 - p)
         logp = -torch.log(torch.clamp(p, 1e-4, 1 - 1e-4))
         loss = logp * ((1 - p) ** self.gamma)
-
         if self.reduction == "mean":
             loss = self.n_classes * loss.mean()
         elif self.reduction == "sum":

@@ -1,0 +1,68 @@
+# basic config for Simple NN
+
+###################
+### DATA CONFIG ###
+###################
+basic_col_subset:
+    desc: Only train on subset of columns (e.g. demos, ED vitals, Acuity, and CC)
+    value: False
+drop_sparse_cols:
+    desc: "Drop all columns that don't have at least this many non-NA values"
+    value: 2000
+downsample:
+    desc: Downsample majority class
+    value: False
+###########################
+### CLASS WEIGHT CONFIG ###
+###########################
+# 
+class_weight_type:
+    desc: Type of class weighting (can be inverse, None, effective_sample, balanced, or constant, pos_weight). Pos_weight is based on the PyTorch BCEWithLogitsLoss docs
+    value: constant
+class_weight_inv_lambda:
+    desc: "The amount to normalize by in 'inverse' class weighting"
+    value: 10.0
+weight_beta:
+    desc: "Only used if class_weight_type is 'effective sample'"
+    value: 0.999
+constant_weight:
+    desc: "Only used if class_weight_type is 'constant'"
+    value: 1000
+
+###################
+### RUN CONFIG ####
+###################
+epochs:
+  desc: Number of epochs to train over
+  value: 150
+batch_size:
+  desc: Size of each mini-batch
+  value: 64
+
+###################
+### MODEL CONFIG ##
+###################
+
+loss_fn:
+    desc: "Learning rate to use (either 'focal' or 'bce')"
+    value: bce
+learning_rate:
+    desc: The learning rate
+    value: 0.0005
+lr_weight_decay:
+    desc: Weight decay on the loss fn
+    value: 0.0
+lr_scheduler:
+    desc: Whether a learning scheduler (Exponential) is used
+    value: False
+focal_loss_gamma:
+    desc: Balance parameter for Focal Loss
+    value: 0.5
+layer_size:
+    desc: Num of neurons in each layer
+    value: 128
+dropout:
+    desc: Percentage of dropout
+    value: 0.4
+    
+    

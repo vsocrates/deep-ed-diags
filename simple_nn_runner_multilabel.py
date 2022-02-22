@@ -16,20 +16,15 @@ import matplotlib.pyplot as plt
 
 import csv
 import ast
-from datetime import date, datetime
-from datetime import datetime
 import pickle as pkl
-
-from sklearn import preprocessing
-from sklearn.metrics import top_k_accuracy_score
+import logging
 
 import numpy as np
 import pandas as pd
+
 import sklearn
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
-
-from joblib import dump, load
 
 import torch
 from torch.utils.data import TensorDataset
@@ -37,16 +32,16 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from torch.optim.lr_scheduler import *
 
-from models.simple_nn import *
-
 import wandb
 
-import logging
-
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.loggers import WandbLogger
 
 from utils.simple_nn_utils import *
 from utils.model_utils import *
+from models.simple_nn import *
+
+
 
 ################
 ### Settings ###
@@ -61,34 +56,40 @@ config = {
     ###### DATA CONFIG
     "basic_col_subset": False,
     # drop columns that don't have at least this many non-NA values
-    "drop_sparse_cols": 100,
+    "drop_sparse_cols": 5000,
     # downsample majority class
     "downsample": False,
     ###### CLASS WEIGHT CONFIG
     # can be "inverse", None, "effective_sample", or "balanced", "constant", "bce_weights"
-    "class_weight_type": "bce_weights",
+    "class_weight_type": "constant",
     # The amount to normalize by in "inverse" class weighting
     # "class_weight_inv_lambda":10.0,
     # only used if class_weight_type is "effective sample"
     # "weight_beta" : 0.999,
     # only used if class_weight_type is "constant"
-    #     "constant_weight":1000,
+    "constant_weight":1000,
     ###### PROGRAM CONFIG
     # how often do we want to do evaluation
     "eval_freq": 2,
     ###### MODEL CONFIG
+    # two options, "focal" or "bce" 
+    "loss_fn" : "bce",
     "learning_rate": 0.0001,
     "lr_weight_decay": 0.0,
     "lr_scheduler": False,
-    "focal_loss_gamma": 5.0,
-    "layer_size": 256,
+    "focal_loss_gamma": 10.0,
+    "layer_size": 128,
     "epochs": 50,
     "batch_size": 128,
     "dropout": 0.0,
 }
 
+# just fix this issue of conditional params
+if config['loss_fn'] == "focal":
+    config['class_weight_type'] = None
 
-wandb.init(project="test-project", entity="decile", config=config)
+
+wandb.init(project="test-project", entity="decile", config=config, save_code=True)
 WANDB_RUN_NAME = wandb.run.name
 
 logging.basicConfig(
@@ -275,6 +276,8 @@ N_CLASSES = len(label_list)
 if wandb.config["class_weight_type"]:
     class_weights = get_class_weights(y_train.tolist(), wandb, data.shape[0])
     class_weights = torch.tensor(class_weights).float().to(device)
+else:
+    class_weights = None
     print(class_weights)
 print(data[train_col_mask].shape)
 print(X_train.shape)
@@ -401,6 +404,7 @@ logging.info(f"Created train/test loaders")
 
 
 try:
+    
 
     model = AbdPainPredictionMLP(
         INPUT_DIM,
@@ -424,16 +428,13 @@ try:
     else:
         scheduler = None
 
-    # opt = torch.optim.RMSprop(model.parameters(), lr=0.001)
-    if wandb.config["class_weight_type"]:
 
+    if wandb.config['loss_fn'] == "focal":
         loss = MultilabelFocalLoss(N_CLASSES, gamma=wandb.config["focal_loss_gamma"])
-        # print(f"Using Class Weights: {class_weights.shape}")
-        # loss = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights,)
-
+    elif wandb.config['loss_fn'] == "bce":
+        loss = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights)
     else:
-        loss = MultilabelFocalLoss(N_CLASSES, gamma=wandb.config["focal_loss_gamma"])
-    #         loss = torch.nn.BCEWithLogitsLoss()
+        loss = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights)
 
     multilabel_train(
         model,

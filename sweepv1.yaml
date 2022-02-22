@@ -1,0 +1,35 @@
+program: lit_simple_nn_runner_multilabel.py
+method: bayes
+name: simple_nn_v1
+description: The first hyperparam sweep of the simple NN after playing with data scaling etc. 
+project: test-project
+entity: decile
+metric:
+    name: validation_loss
+    goal: minimize    
+parameters:
+    learning_rate:
+        distribution: log_uniform
+        min: -13.8155
+        max: 0
+    batch_size:
+        values: [32, 64, 96, 128, 256]
+    dropout:
+        distribution: normal
+        mu: 0.4
+        sigma: 0.1        
+    drop_sparse_cols:
+        distribution: int_uniform
+        min: 10
+        max: 8000
+    class_weight_type:
+        values: ["pos_weight", "constant"]
+    constant_weight:
+        distribution: int_uniform
+        min: 10
+        max: 8000
+    layer_size:
+        values: [32, 64, 96, 128, 256]        
+early_terminate:
+    type: hyperband
+    min_iter: 4
