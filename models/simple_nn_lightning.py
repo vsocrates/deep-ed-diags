@@ -8,19 +8,27 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import pytorch_lightning as pl
-import torch.nn.functional as F 
+import torch.nn.functional as F
 
 from torch.optim.lr_scheduler import ExponentialLR
-import torchmetrics 
+import torchmetrics
 
 import wandb
 
+
 class LitAbdPainPredictionMLP(pl.LightningModule):
-    def __init__(self, input_dim, n_classes, 
-#                  learning_rate, 
-                 config=None, loss_fn=F.binary_cross_entropy_with_logits, layer_size=256, dropout=0.5):
+    def __init__(
+        self,
+        input_dim,
+        n_classes,
+        #                  learning_rate,
+        config=None,
+        loss_fn=F.binary_cross_entropy_with_logits,
+        layer_size=256,
+        dropout=0.5,
+    ):
         """Basic MLP to Training Abdominal Pain DDX Prediction
-        
+
         config is a dictionary from W&B most likely
         """
         super().__init__()
@@ -36,9 +44,9 @@ class LitAbdPainPredictionMLP(pl.LightningModule):
 
         self.dropout = nn.Dropout(p=dropout)
         self.dropout_p = dropout
-        
+
         self.config = config
-#         self.lr = learning_rate
+        #         self.lr = learning_rate
 
         self.loss = loss_fn
 
@@ -81,12 +89,12 @@ class LitAbdPainPredictionMLP(pl.LightningModule):
                 ),
                 "train_recall@5": torchmetrics.functional.retrieval_recall(
                     out, targets.long(), k=5
-                )
+                ),
             }
         )
 
         return loss
-    
+
     def validation_step(self, batch, batch_idx):
         data, targets = batch
         # TODO: ValueError: You can not use the `top_k` parameter to calculate accuracy for multi-label inputs.
@@ -105,34 +113,36 @@ class LitAbdPainPredictionMLP(pl.LightningModule):
         #                                                  )})
 
         self.log("validation_loss", loss)
-        wandb.log({"validation_acc": torchmetrics.functional.accuracy(
-                        preds, targets.long(), subset_accuracy=True
-                    )})
+        wandb.log(
+            {
+                "validation_acc": torchmetrics.functional.accuracy(
+                    preds, targets.long(), subset_accuracy=True
+                )
+            }
+        )
         #         wandb.log({"top5_validation_acc":sum(avg_topk_acc)/len(avg_topk_acc)})
-        
-        
-        return loss        
+
+        return loss
 
     def configure_optimizers(self):
-#         opt = torch.optim.SGD(self.parameters(), 
-#                                     lr=self.lr, 
-#                                     weight_decay=self.config["lr_weight_decay"],
-#                                     momentum=0.9)
+        #         opt = torch.optim.SGD(self.parameters(),
+        #                                     lr=self.lr,
+        #                                     weight_decay=self.config["lr_weight_decay"],
+        #                                     momentum=0.9)
 
         opt = torch.optim.Adam(
             self.parameters(),
             lr=self.config["learning_rate"],
             weight_decay=self.config["lr_weight_decay"],
         )
-        
-        if self.config['lr_scheduler']:            
+
+        if self.config["lr_scheduler"]:
             return {
                 "optimizer": opt,
                 "lr_scheduler": {
-                'scheduler': ExponentialLR(opt, 0.99),
-                'interval': 'epoch'  # called after each training step
+                    "scheduler": ExponentialLR(opt, 0.99),
+                    "interval": "epoch",  # called after each training step
                 },
             }
         else:
             return opt
-    

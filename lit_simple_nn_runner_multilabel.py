@@ -32,7 +32,8 @@ from utils.simple_nn_utils import *
 from utils.model_utils import *
 from models.simple_nn_lightning import *
 
-import yaml 
+import yaml
+
 
 def train():
     ################
@@ -43,29 +44,35 @@ def train():
     # data_fp = f"/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/unq_pt_enc_clean_multilabel_nomis_dvemb.pkl"
     data_fp = f"/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/unq_pt_enc_clean_multilabel_nomismatches_CTUS.pkl"
     # data_fp = f"/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/unq_pt_enc_clean_multilabel_nomismatches.pkl"
-    config_fp = f"/home/vs428/Documents/deep-ed-diags/configs/simple_nn_base_config.yaml"
+    config_fp = (
+        f"/home/vs428/Documents/deep-ed-diags/configs/simple_nn_base_config.yaml"
+    )
 
     fast_dev_run = False
     standardize = True
     # impacts how quickly we do earlystopping too by patience
     eval_freq = 2
 
-    wandb.init(project="test-project", 
-               entity="decile",
-               config=config_fp, 
-               allow_val_change=True,
-               save_code=True)
+    wandb.init(
+        project="test-project",
+        entity="decile",
+        config=config_fp,
+        allow_val_change=True,
+        save_code=True,
+    )
 
     WANDB_RUN_NAME = wandb.run.name
 
     # just fix some issue of conditional params
-    if wandb.config['loss_fn'] == "focal":
-        wandb.config.update({'class_weight_type': None}, allow_val_change=True)
+    if wandb.config["loss_fn"] == "focal":
+        wandb.config.update({"class_weight_type": None}, allow_val_change=True)
     if fast_dev_run:
-        wandb.config.update({'drop_sparse_cols': 0}, allow_val_change=True)
-    if wandb.config['class_weight_type'] == "None" or wandb.config['class_weight_type'] == None:
-        wandb.config.update({'class_weight_type': None}, allow_val_change=True)
-
+        wandb.config.update({"drop_sparse_cols": 0}, allow_val_change=True)
+    if (
+        wandb.config["class_weight_type"] == "None"
+        or wandb.config["class_weight_type"] == None
+    ):
+        wandb.config.update({"class_weight_type": None}, allow_val_change=True)
 
     print(wandb.config, flush=True)
 
@@ -74,13 +81,21 @@ def train():
     ### Data Load ###
     #################
 
-    X_train_input, y_train_input, X_test_input, y_test_input, class_weights = load_multilabel_data(data_fp, 
-                                                                                    wandb.config, 
-                                                                                    fast_dev_run=fast_dev_run, 
-                                                                                    run_name=WANDB_RUN_NAME,
-                                                                                    basic_cols=wandb.config['basic_col_subset'], 
-                                                                                    test_size=0.2,
-                                                                                    standardize=standardize)
+    (
+        X_train_input,
+        y_train_input,
+        X_test_input,
+        y_test_input,
+        class_weights,
+    ) = load_multilabel_data(
+        data_fp,
+        wandb.config,
+        fast_dev_run=fast_dev_run,
+        run_name=WANDB_RUN_NAME,
+        basic_cols=wandb.config["basic_col_subset"],
+        test_size=0.2,
+        standardize=standardize,
+    )
 
     # we need to store this value for the NN model definition
     INPUT_DIM = X_train_input.shape[1]
@@ -107,41 +122,59 @@ def train():
 
         # Callbacks
 
-        lr_monitor = LearningRateMonitor(logging_interval='step')
+        lr_monitor = LearningRateMonitor(logging_interval="step")
         # log the histograms of input data sent to LightningModule.training_step
         training_data_monitor = TrainingDataMonitor(log_every_n_steps=25)
         print_callback = PrintCallback()
 
-        early_stopping = EarlyStopping(min_delta=0.00001, patience=3, verbose=True, monitor="validation_loss")
-        checkpoint_callback = ModelCheckpoint(dirpath="/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/models",
-                                              filename=f"{WANDB_RUN_NAME}.model",
-                                              monitor="validation_loss")
+        early_stopping = EarlyStopping(
+            min_delta=0.00001, patience=3, verbose=True, monitor="validation_loss"
+        )
+        checkpoint_callback = ModelCheckpoint(
+            dirpath="/gpfs/milgram/project/rtaylor/shared/ABDPain_EarlyDiags/models",
+            filename=f"{WANDB_RUN_NAME}.model",
+            monitor="validation_loss",
+        )
 
         # Predict after trainer callback using 20% of the validation dataset
-        after_train_dataset = val_dataset[np.random.choice(len(val_dataset), int(len(val_dataset)*0.2), replace=False)]
+        after_train_dataset = val_dataset[
+            np.random.choice(
+                len(val_dataset), int(len(val_dataset) * 0.2), replace=False
+            )
+        ]
         val_preds_logger = PredictionLogger(after_train_dataset)
 
-        callbacks = [lr_monitor, training_data_monitor, print_callback, early_stopping, checkpoint_callback, val_preds_logger]
+        callbacks = [
+            lr_monitor,
+            training_data_monitor,
+            print_callback,
+            early_stopping,
+            checkpoint_callback,
+            val_preds_logger,
+        ]
 
         # Logger
-        wandb_logger = WandbLogger(project="test-project")    
+        wandb_logger = WandbLogger(project="test-project")
 
-        trainer = Trainer(logger=wandb_logger,
-                         callbacks=callbacks,
-                         check_val_every_n_epoch=eval_freq,
-                         devices="auto", accelerator="auto",
-                          fast_dev_run=fast_dev_run
-                         )
+        trainer = Trainer(
+            logger=wandb_logger,
+            callbacks=callbacks,
+            check_val_every_n_epoch=eval_freq,
+            devices="auto",
+            accelerator="auto",
+            fast_dev_run=fast_dev_run,
+        )
 
-        if wandb.config['loss_fn'] == "focal":
-            # TODO: the loss balance param seems to have the opposite effect? 
-            # shouldn't loss go up as gamma becomes bigger        
-            loss = MultilabelFocalLoss(N_CLASSES, gamma=wandb.config["focal_loss_gamma"])
-        elif wandb.config['loss_fn'] == "bce":
+        if wandb.config["loss_fn"] == "focal":
+            # TODO: the loss balance param seems to have the opposite effect?
+            # shouldn't loss go up as gamma becomes bigger
+            loss = MultilabelFocalLoss(
+                N_CLASSES, gamma=wandb.config["focal_loss_gamma"]
+            )
+        elif wandb.config["loss_fn"] == "bce":
             loss = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights)
         else:
             loss = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights)
-
 
         mlp_system = LitAbdPainPredictionMLP(
             INPUT_DIM,
@@ -163,7 +196,8 @@ def train():
         traceback.print_exc()
     finally:
         wandb.finish()
-    
+
+
 # def main(args):
 #     model = LightningModule()
 #     trainer = Trainer.from_argparse_args(args)
@@ -171,11 +205,11 @@ def train():
 
 
 if __name__ == "__main__":
-#     parser = ArgumentParser()
-#     parser = Trainer.add_argparse_args(parser)
-#     args = parser.parse_args()
+    #     parser = ArgumentParser()
+    #     parser = Trainer.add_argparse_args(parser)
+    #     args = parser.parse_args()
 
-#     main(args)
+    #     main(args)
     #############
     ### Sweep ###
     #############
@@ -185,7 +219,7 @@ if __name__ == "__main__":
         try:
             config_dict = yaml.load(file, Loader=yaml.FullLoader)
         except yaml.YAMLError as exc:
-            print(exc)    
+            print(exc)
     train()
 #     sweep_id = wandb.sweep(config_dict,
 #                           project="test-project")

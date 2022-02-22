@@ -55,14 +55,13 @@ def multilabel_get_class_weights(labels, config, n_samples, label_list=None):
         class_weights = n_samples / (len(samples_per_cls) * samples_per_cls).values
     elif config["class_weight_type"] == "inverse":
         # multiply by total/2 as per tensorflow core example imbalanced classes
-        class_weights = ((1 / samples_per_cls) * (
-            samples_per_cls.sum() / config["class_weight_inv_lambda"]
-        )).values
+        class_weights = (
+            (1 / samples_per_cls)
+            * (samples_per_cls.sum() / config["class_weight_inv_lambda"])
+        ).values
 
     elif config["class_weight_type"] == "constant":
-        class_weights = np.full(
-            (1, len(samples_per_cls)), config["constant_weight"]
-        )
+        class_weights = np.full((1, len(samples_per_cls)), config["constant_weight"])
     elif config["class_weight_type"] == "bce_weights":
         class_weights = (
             (samples_per_cls.sum() - samples_per_cls) / (samples_per_cls)
@@ -238,30 +237,32 @@ def multilabel_train(
         f" Train accuracy: {multilabel_evaluate(model,loss_fn, train_loader, device, wandb)}. Test accuracy: {multilabel_evaluate(model,loss_fn, test_loader, device, wandb)}",
         flush=True,
     )
-    
+
 
 class PrintCallback(pl.Callback):
     def on_train_start(self, trainer, pl_module):
         print("Training is started!")
+
     def on_train_end(self, trainer, pl_module):
         print("Training is done.")
-        
+
 
 class PredictionLogger(pl.Callback):
     def __init__(self, val_samples):
         super().__init__()
         self.val_data, self.val_targets = val_samples
-    
+
     def on_validation_end(self, trainer, pl_module):
         val_imgs = self.val_data.to(device=pl_module.device)
         val_targets = self.val_targets.to(device=pl_module.device)
-        
+
         out = pl_module(val_imgs)
         preds = torch.sigmoid(out).data > 0.5
         preds = preds.to(torch.float32)
-        
+
         val_precision = torchmetrics.functional.precision(preds, val_targets.long())
-        val_recall = torchmetrics.functional.recall(preds, val_targets.long())        
-        
-        print(f"\n\n\nValidation Precision/macro: {val_precision}\nValidation Recall/macro: {val_recall}\n\n")
-        
+        val_recall = torchmetrics.functional.recall(preds, val_targets.long())
+
+        print(
+            f"\n\n\nValidation Precision/macro: {val_precision}\nValidation Recall/macro: {val_recall}\n\n"
+        )

@@ -24,7 +24,15 @@ from .simple_nn_utils import *
 #################
 ### Data Load ###
 #################
-def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_cols=False, test_size=0.2, standardize=True):
+def load_multilabel_data(
+    data_fp,
+    config,
+    run_name,
+    fast_dev_run=False,
+    basic_cols=False,
+    test_size=0.2,
+    standardize=True,
+):
 
     std_scaler = StandardScaler()
     minmax_scaler = MinMaxScaler()
@@ -47,29 +55,31 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
     print(f"dataset size: {data.shape}")
 
     # TODO: downsample doesn't work for multilabel yet
-#     if wandb.config["downsample"]:
-#         # we use the avg of the freq of the next 5 classes to downsample abdominal pain
-#         downsample_rate = int(data["label"].value_counts()[1:5].mean())
+    #     if wandb.config["downsample"]:
+    #         # we use the avg of the freq of the next 5 classes to downsample abdominal pain
+    #         downsample_rate = int(data["label"].value_counts()[1:5].mean())
 
-#         def downsample_grp(grp):
-#             if grp.name == "Abdominal Pain, general":
-#                 return grp.sample(downsample_rate)
-#             else:
-#                 return grp
+    #         def downsample_grp(grp):
+    #             if grp.name == "Abdominal Pain, general":
+    #                 return grp.sample(downsample_rate)
+    #             else:
+    #                 return grp
 
-#         downsampled = data.groupby("label").apply(downsample_grp)
-#         data = downsampled.drop("label", axis=1).reset_index().set_index("level_1")
-#         data.index.name = None
-#         # TODO: we don't do stratification on multilabel, is that okay?
-#     #     train_test_stratify = data['label']
+    #         downsampled = data.groupby("label").apply(downsample_grp)
+    #         data = downsampled.drop("label", axis=1).reset_index().set_index("level_1")
+    #         data.index.name = None
+    #         # TODO: we don't do stratification on multilabel, is that okay?
+    #     #     train_test_stratify = data['label']
 
-#     else:
-#         pass
-#     #     train_test_stratify = data['label']
+    #     else:
+    #         pass
+    #     #     train_test_stratify = data['label']
 
     # drop all columns that don't have any positive actual values/only have all NaNs
     data = data.drop(
-        data.columns[((data.shape[0] - data.isnull().sum()) == 0)], axis=1, errors="ignore"
+        data.columns[((data.shape[0] - data.isnull().sum()) == 0)],
+        axis=1,
+        errors="ignore",
     )
 
     # remove columns that don't have at least N (hyperparam) number of non-NaN values
@@ -123,7 +133,7 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
             "ed_BP_Diastolic",
         ]
     )
-    
+
     normal_cols = avg_cols.union(vital_cols).union(
         data.columns[data.columns.str.contains("doc2vec_")]
     )
@@ -155,7 +165,7 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
 
     all_other_cols = data.columns.difference(cat_cols, sort=False)
     all_other_cols = all_other_cols.difference(normal_cols, sort=False)
-    
+
     # remove label as well, since we don't scale it
     all_other_cols = all_other_cols.difference(pd.Index(["multilabel"]), sort=False)
 
@@ -180,16 +190,20 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
     # get class weights using only training data
     class_weights = None
     if config["class_weight_type"]:
-        class_weights = multilabel_get_class_weights(y_train.tolist(), config, data.shape[0], label_list)
+        class_weights = multilabel_get_class_weights(
+            y_train.tolist(), config, data.shape[0], label_list
+        )
         if class_weights is not None:
             class_weights = torch.tensor(class_weights).float()
         print(class_weights)
-        
+
     print(data[train_col_mask].shape)
     print(X_train.shape)
     if standardize:
         # get the indices for the pandas column names
-        cat_col_idxs = column_index(data[train_col_mask], train_col_mask.intersection(cat_cols))
+        cat_col_idxs = column_index(
+            data[train_col_mask], train_col_mask.intersection(cat_cols)
+        )
         normal_col_idxs = column_index(
             data[train_col_mask], train_col_mask.intersection(normal_cols)
         )
@@ -232,7 +246,9 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
             X_train_minmax_scaled = minmax_scaler.transform(
                 X_train.iloc[:, all_other_cols_idxs]
             )
-            X_test_minmax_scaled = minmax_scaler.transform(X_test.iloc[:, all_other_cols_idxs])
+            X_test_minmax_scaled = minmax_scaler.transform(
+                X_test.iloc[:, all_other_cols_idxs]
+            )
         else:
             X_train_minmax_scaled = np.array([])
             X_test_minmax_scaled = np.array([])
@@ -252,7 +268,6 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
             np.nan_to_num(X_train_minmax_scaled), dtype=torch.float
         )
 
-
         X_test_input[:, cat_col_idxs] = torch.tensor(
             np.nan_to_num(X_test.iloc[:, cat_col_idxs]), dtype=torch.float
         )
@@ -266,12 +281,11 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
         # scale/normalize based on the column idxs above
         X_train_input = torch.tensor(np.nan_to_num(X_train.values)).float()
         X_test_input = torch.tensor(np.nan_to_num(X_test.values)).float()
-        
 
     # For the multilabel case, we have to transform the y_train and y_test datasets ourselves
     y_train_input = torch.zeros(X_train_input.shape[0], N_CLASSES, dtype=torch.float)
     y_test_input = torch.zeros(X_test_input.shape[0], N_CLASSES, dtype=torch.float)
-    
+
     print("y_train_input", y_train_input.shape)
     for row_idx, (_, labels) in enumerate(y_train.items()):
         y_train_input[row_idx, :] = torch.tensor(
@@ -287,13 +301,11 @@ def load_multilabel_data(data_fp, config, run_name, fast_dev_run=False, basic_co
     if config["class_weight_type"] == "pos_weight":
         num_positives = torch.sum(y_train_input, dim=0)
         num_negatives = len(y_train_input) - num_positives
-        pos_weight  = num_negatives / (num_positives + 1e-5)
+        pos_weight = num_negatives / (num_positives + 1e-5)
         class_weights = pos_weight
         print(class_weights)
-        
+
     # make sure that we have at least positive class per data example
     assert (torch.sum(y_train_input, 1) >= 1).all()
-    
-    return X_train_input, y_train_input, X_test_input, y_test_input, class_weights
 
-    
+    return X_train_input, y_train_input, X_test_input, y_test_input, class_weights

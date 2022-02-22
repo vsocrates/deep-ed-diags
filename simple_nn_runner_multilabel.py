@@ -42,7 +42,6 @@ from utils.model_utils import *
 from models.simple_nn import *
 
 
-
 ################
 ### Settings ###
 ################
@@ -67,13 +66,13 @@ config = {
     # only used if class_weight_type is "effective sample"
     # "weight_beta" : 0.999,
     # only used if class_weight_type is "constant"
-    "constant_weight":1000,
+    "constant_weight": 1000,
     ###### PROGRAM CONFIG
     # how often do we want to do evaluation
     "eval_freq": 2,
     ###### MODEL CONFIG
-    # two options, "focal" or "bce" 
-    "loss_fn" : "bce",
+    # two options, "focal" or "bce"
+    "loss_fn": "bce",
     "learning_rate": 0.0001,
     "lr_weight_decay": 0.0,
     "lr_scheduler": False,
@@ -85,8 +84,8 @@ config = {
 }
 
 # just fix this issue of conditional params
-if config['loss_fn'] == "focal":
-    config['class_weight_type'] = None
+if config["loss_fn"] == "focal":
+    config["class_weight_type"] = None
 
 
 wandb.init(project="test-project", entity="decile", config=config, save_code=True)
@@ -404,7 +403,6 @@ logging.info(f"Created train/test loaders")
 
 
 try:
-    
 
     model = AbdPainPredictionMLP(
         INPUT_DIM,
@@ -428,10 +426,9 @@ try:
     else:
         scheduler = None
 
-
-    if wandb.config['loss_fn'] == "focal":
+    if wandb.config["loss_fn"] == "focal":
         loss = MultilabelFocalLoss(N_CLASSES, gamma=wandb.config["focal_loss_gamma"])
-    elif wandb.config['loss_fn'] == "bce":
+    elif wandb.config["loss_fn"] == "bce":
         loss = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights)
     else:
         loss = torch.nn.BCEWithLogitsLoss(pos_weight=class_weights)
